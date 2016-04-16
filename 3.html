@@ -1,0 +1,310 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <title>gray.html</title>
+	
+    <meta http-equiv="keywords" content="keyword1,keyword2,keyword3">
+    <meta http-equiv="description" content="this is my page">
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    
+    <!--<link rel="stylesheet" type="text/css" href="./styles.css">-->
+<script type="text/javascript">
+function ProcessToGrayImage(){
+	var canvas = document.getElementById('myCanvasElt');
+	var ctx = canvas.getContext('2d');
+	var img=new Image()
+	img.src="VerifyCode.gif"
+	ctx.drawImage(img,0,0);
+	
+	var canvasData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+	for (var x = 0; x < canvasData.width; x++) {
+	    for (var y = 0; y < canvasData.height; y++) {
+	        // Index of the pixel in the array
+	        var idx = (x + y * canvas.width) * 4;
+	        // The RGB values
+	        var r = canvasData.data[idx + 0];
+	        var g = canvasData.data[idx + 1];
+	        var b = canvasData.data[idx + 2];
+	        // Update the values of the pixel;
+	        var gray = CalculateGrayValue(r , g , b);
+			
+	        canvasData.data[idx + 0] = gray;
+	        canvasData.data[idx + 1] = gray;
+	        canvasData.data[idx + 2] = gray;
+	    }
+	}
+	 
+	ctx.putImageData(canvasData, 0, 0);
+}
+
+//計算圖像的灰度值,公式為：Gray = R*0.299 + G*0.587 + B*0.114
+ function CalculateGrayValue(rValue,gValue,bValue){
+ 	  	   return parseInt(rValue * 0.299 + gValue * 0.587 + bValue * 0.114);
+	   
+ 	}	
+ //一維OTSU圖像處理算法
+ function OTSUAlgorithm(){
+   var m_pFstdHistogram = new Array();//表示灰度值的分佈點概率
+   var m_pFGrayAccu = new Array();//其中每一個值等於m_pFstd Histogram中從0到當前下標值的和
+   var m_pFGrayAve = new Array();//其中每一值等於m_pFstd Histogram中從0到當前指定下標值*對應的下標之和
+   var m_pAverage=0;//值為m_pFstd Histogram【256】中每一點的分佈概率*當前下標之和
+   var m_pHistogram = new Array();//灰度直方圖
+   var i,j;
+   var temp=0,fMax=0;//定義一個臨時變量和一個最大類間方差的值
+   var nThresh = 0;//最優閥值
+   //獲取灰度圖像的信息
+   var imageInfo = GetGrayImageInfo();
+   if(imageInfo == null){
+     window.alert("图像还没有转化为灰度图像！");
+     return;
+   }
+   //初始化各項參數
+   for(i=0; i<256; i++){
+     m_pFstdHistogram[i] = 0;
+     m_pFGrayAccu[i] = 0;
+     m_pFGrayAve[i] = 0;
+     m_pHistogram[i] = 0;
+   }
+   //獲取圖像信息
+   var canvasData = imageInfo[0];
+   //獲取圖像的像素
+   var pixels = canvasData.data;
+
+   //下面統計圖像的灰度分佈信息
+   for(i=0; i<pixels.length; i+=4){
+      //獲取r的像素值，因為灰度圖像，r=g=b，所以取第一個即可
+      var r = pixels[i];
+      m_pHistogram[r]++;
+   }
+   //下面計算每一個灰度點在圖像中出現的概率
+   var size = canvasData.width * canvasData.height;
+   for(i=0; i<256; i++){
+      m_pFstdHistogram[i] = m_pHistogram[i] / size;
+   }
+   //下面開始計算m_pFGrayAccu和m_pFGrayAve和m_pAverage的值
+   for(i=0; i<256; i++){
+      for(j=0; j<=i; j++){
+        //計算m_pFGaryAccu[256]
+		m_pFGrayAccu[i] += m_pFstdHistogram[j];
+		//計算m_pFGrayAve[256]
+		m_pFGrayAve[i] += j * m_pFstdHistogram[j];
+      }
+      //計算平均值
+	  m_pAverage += i * m_pFstdHistogram[i];
+   }
+   //下面開始就算OTSU的值,從0-255個值中分別計算ostu並尋找出最大值作為分割閥值
+   for (i = 0 ; i < 256 ; i++){
+		temp = (m_pAverage * m_pFGrayAccu[i] - m_pFGrayAve[i]) 
+		     * (m_pAverage * m_pFGrayAccu[i] - m_pFGrayAve[i]) 
+		     / (m_pFGrayAccu[i] * (1 - m_pFGrayAccu[i]));
+		if (temp > fMax)
+		{
+			fMax = temp;
+			nThresh = i;
+			
+		}
+	}
+	 alert("閥值為:"+nThresh);
+   //下面執行二值化過程 
+   for(i=0; i<canvasData.width; i++){
+      for(j=0; j<canvasData.height; j++){
+         //取得每一點的位置
+         var ids = (i + j*canvasData.width)*4;
+         //取得像素的R分量的值
+         var r = canvasData.data[ids];
+         //與閥值進行比較，如果小於閥值，那麼將改點置為0，否則置為255
+		
+         var gray = r>nThresh?255:0;
+         canvasData.data[ids+0] = gray;
+         canvasData.data[ids+1] = gray;
+         canvasData.data[ids+2] = gray;
+      }
+   }
+   //顯示二值化圖像
+   var newImage = document.getElementById('myCanvasThreshold').getContext('2d');
+   newImage.putImageData(canvasData,0,0);
+ }	
+ 
+ //獲取圖像的灰度圖像的信息
+ function GetGrayImageInfo(){
+    var canvas = document.getElementById('myCanvasElt');
+	var ctx = canvas.getContext('2d');
+	var canvasData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+	if(canvasData.data.length==0){
+	  return null;
+	}
+	return [canvasData,ctx];
+ }
+ //下面對灰度圖像進行處理，將目標信息分割出來
+ function DividedTarget(){
+   //讀取二值化圖像信息
+   var imageInfo = document.getElementById('myCanvasThreshold');
+   if(imageInfo == null){
+     window.alert("沒有發現二值化圖像信息！");
+     return;
+   }
+   //取得上下文
+   var ctx = imageInfo.getContext('2d');
+   //獲取圖像數據
+   var canvasData = imageInfo.getImageData(0, 0, ctx.width, ctx.height);
+   var newVanvasData = canvasData;
+   //取得圖像的寬和高
+   var width = canvasData.width;
+   var height = canvasData.height;
+   //算法開始
+   var cursor = 2;
+   for(var x=0; x<width; x++){
+      for(var y=0; y<height; y++){
+         //取得每一點的位置
+         var ids = (x + y*canvasData.width)*4;
+         //取得像素的R分量的值
+         var r = canvasData.data[ids];
+         //如果是目標點
+         if(r==0){
+            
+         }
+      }
+   }
+
+ }
+  //取得二值化影像
+ function GetOstuImageInfo(){
+    var canvas = document.getElementById('myCanvasThreshold');
+	var ctx = canvas.getContext('2d');
+	var canvasData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+	if(canvasData.data.length==0){
+	  return null;
+	}
+	return [canvasData,ctx];
+ }
+  function Algorithm(){
+  var imageInfo = GetOstuImageInfo();
+  //獲取圖像信息
+  var canvasData = imageInfo[0];
+  //獲取圖像的像素
+  var pixels = canvasData.data;
+     
+  var entropy = 0,energy = 0,contrast = 0,homogenity = 0;  
+  var w,k,l,height=250,width=250,GLCM_DIS=3,GLCM_CLASS=16; //計算灰度共生矩陣  
+  var  glcm = new Array(GLCM_CLASS*GLCM_CLASS);  //16為計算灰度共生矩陣的圖像灰度值等級化
+  var histImage = pixels;
+
+  //初始化共生矩陣  
+    for (i = 0;i < 16;i++)  
+        for (j = 0;j < 16;j++)  
+            glcm[i * 16 + j] = 0;
+  //灰度等級化---分GLCM_CLASS個等級 
+    for(i = 0;i < height;i++){  
+        for(j = 0;j < width;j++){  
+            histImage[i * width + j] = (histImage[i * width + j]* GLCM_CLASS / 256);  
+        }  
+    }  
+	
+  //水平方向
+  if(height < width)  
+    {  
+        for (i = 0;i < height;i++)  
+        {  
+            for (j = 0;j < width;j++)  
+            {  
+                l = histImage[i * width + j];  
+                if(j + GLCM_DIS >= 0 && j + GLCM_DIS < width)  
+                {  
+                    k = histImage[i * width + j + GLCM_DIS];  
+                    glcm[l * GLCM_CLASS + k]++;  
+                }  
+                if(j - GLCM_DIS >= 0 && j - GLCM_DIS < width)  
+                {  
+                    k = histImage[i * width + j - GLCM_DIS];  
+                    glcm[l * GLCM_CLASS + k]++;  
+
+                }  
+            }  
+        }  
+    } 
+    else if(height > width)  
+    {  
+        for (i = 0;i < height;i++)  
+        {  
+            for (j = 0;j < width;j++)  
+            {  
+                l = histImage[i * width + j];  
+                if(i + GLCM_DIS >= 0 && i + GLCM_DIS < height)   
+                {  
+                    k = histImage[(i + GLCM_DIS) * width + j];  
+                    glcm[l * GLCM_CLASS + k]++;  
+                }  
+                if(i - GLCM_DIS >= 0 && i - GLCM_DIS < height)   
+                {  
+                    k = histImage[(i - GLCM_DIS) * width + j];  
+                    glcm[l * GLCM_CLASS + k]++;  
+                }  
+            }  
+        }  
+    }  	
+	//對角方向  
+    else if(height == width)  
+    {  
+        for (i = 0;i < height;i++)  
+        {  
+            for (j = 0;j < width;j++)  
+            {  
+			
+			
+                l = histImage[i * width + j];  
+               
+                if(j + GLCM_DIS >= 0 && j + GLCM_DIS < width && i + GLCM_DIS >= 0 && i + GLCM_DIS < height)  
+                {  
+                    k = histImage[(i + GLCM_DIS) * width + j + GLCM_DIS];  
+                    glcm[l * GLCM_CLASS + k]++;  
+                }  
+                if(j - GLCM_DIS >= 0 && j - GLCM_DIS < width && i - GLCM_DIS >= 0 && i - GLCM_DIS < height)  
+                {  
+                    k = histImage[(i - GLCM_DIS) * width + j - GLCM_DIS];  
+                    glcm[l * GLCM_CLASS + k]++;  
+
+                }  
+            }  
+        }  
+    }
+	 
+	
+
+    //計算特徵值
+
+    for (i = 0;i < GLCM_CLASS;i++)  
+    {  
+        for (j = 0;j < GLCM_CLASS;j++)  
+        {  
+            //熵  
+            if(glcm[i * GLCM_CLASS + j] > 0)  
+            entropy -= glcm[i * GLCM_CLASS + j] * Math.log10((glcm[i * GLCM_CLASS + j]));  
+            //能量  
+            energy += glcm[i * GLCM_CLASS + j] * glcm[i * GLCM_CLASS + j];  
+            //對比度  
+            contrast += (i - j) * (i - j) * glcm[i * GLCM_CLASS + j];  
+            //一致性  
+            homogenity += 1.0 / (1 + (i - j) * (i - j)) * glcm[i * GLCM_CLASS + j];  
+        }  
+    } 
+
+	alert("熵:"+entropy);
+	alert("能量:"+energy);
+	alert("對比度:"+contrast);
+	alert("一致性:"+homogenity);	
+
+ 
+
+	} 	
+</script>
+  </head>
+  
+  <body>
+  原影像：<br/>
+  <img src="VerifyCode.gif"/><br/>
+  灰階.二值化影像：<input type="button" value="進行影像處理" onclick="javascript:ProcessToGrayImage();OTSUAlgorithm();Algorithm();" /><br/>
+  <canvas id="myCanvasElt" width="250" height="250"></canvas><br/>
+  <canvas id="myCanvasThreshold" width="250" height="250"></canvas><br/>
+
+  </body>
+</html>

@@ -1,0 +1,21 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <title>gray.html</title>
+	
+    <meta http-equiv="keywords" content="keyword1,keyword2,keyword3">
+    <meta http-equiv="description" content="this is my page">
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    
+    <!--<link rel="stylesheet" type="text/css" href="./styles.css">-->
+<script src="glcm.js"></script>
+  </head>
+  
+  <body>
+  原影像：<br/>
+  <img src="VerifyCode.gif"/><br/>
+  灰階.二值化影像：<input type="button" value="進行影像處理" onclick="javascript:ProcessToGrayImage();OTSUAlgorithm();Algorithm();" /><br/>
+  <canvas id="myCanvasElt" width="250" height="250"></canvas><br/>
+  <canvas id="myCanvasThreshold" width="250" height="250"></canvas><br/>
+  </body>
+</html>
